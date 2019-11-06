@@ -517,7 +517,12 @@ int* grasp(int** matriz_entrada, int size, int num_restart, int target, double a
 	return solution;
 }
 
-// passar size como size - 1
+/*
+	passar size como size - 1
+	atualizar o n_atual + 1, sempre que essa função for chamada, caso n_atual < nE
+	parameter_E é o parametro que define se a diferença simetrica é boa ou não
+	lembrar de limpar elite_set quando a função terminar
+*/
 int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, int parameter_E, int nE, int n_atual)
 {
 	int menor_dif, maior_peso;
@@ -526,7 +531,6 @@ int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, i
 		if(n_atual == 0)
 		{
 			elite_set[0] = copia_lista(solution, size);
-			n_atual += 1;
 		}
 		else{
 			
@@ -535,7 +539,6 @@ int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, i
 			if(menor_dif > parameter_E)
 			{
 				elite_set[n_atual] = copia_lista(solution, size);
-				n_atual += 1;
 			}
 		}
 	}
@@ -591,8 +594,7 @@ int main(int* argc, char* argv[])
 
 	// MATRIZ DE ENTRADA || NUMERO DE CIDADES || QUANTIDADE DE VEZES QUE PROCURA SOLUCAO MELHOR || TARGET || ALPHA (0.0 Greedy | 1.0 Random)
 	int* solution = grasp(matriz, num_cidades, 3, 6010, 0.0);
-	
-	//int* solution = guloso_grasp(matriz, num_cidades, 0, 0.0, 1);
+
 	time_t end = clock();
 
 	int peso = peso_total(solution, num_cidades-1, matriz);
