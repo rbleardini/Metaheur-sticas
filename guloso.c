@@ -28,12 +28,9 @@ int pega_pesada(int size, int**matriz, int** elite_set, int nE);
 int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int nE);
 
 int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i_grasp);
-int* guloso(int** matriz_entrada, int size, int start);
-int* guloso_randomstart(int** matriz_entrada, int size, int num_restart, int i_grasp);
 int peso_total(int* solution, int size, int**matriz);
 int* opt2_swap(int* solution, int i, int k, int size);
 int* busca_local(int** matriz, int* solution, int size);
-int* busca_local_aprimorada(int** matriz, int* solution, int size);
 int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha);
 int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, int parameter_E, int nE, int n_atual);
 
@@ -428,143 +425,6 @@ int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i
 	return solution;
 }
 
-int* guloso(int** matriz_entrada, int size, int start)
-{
-	int** matriz = copia_matriz(matriz_entrada, size);
-	int i, count = 1, count_2 = 0, menor, size_s = size-1;
-	int* solution = malloc(sizeof(int)*(size_s)), *lista;
-	for(i = 1; i < size_s; i++)
-	{
-		solution[i] = -1;
-	}
-	solution[0] = start;
-	printf("Solucao: \n");
-	for(i = 0; i < size_s-1; i++)
-	{
-		printf("%d -> ", solution[i]);
-	}
-	printf("%d\n", solution[size_s-1]);
-	while(pertence(-1, solution, size_s))
-	{
-		menor = pega_menor(matriz[solution[count-1]], size, count, solution);
-		printf("MENOR: %d\n", menor);
-		if(menor == -1)
-		{
-			matriz[solution[count-1]][solution[count]] = 0;
-			count--;
-		} else {
-			count_2++;
-			if(count_2 > size+2)
-			{
-				free(solution);
-				break;
-			}
-			solution[count] = menor;
-			count++;
-		}
-		printf("Solucao: \n");
-		for(i = 0; i < size_s-1; i++)
-		{
-			printf("%d -> ", solution[i]);
-		}
-		printf("%d\n", solution[size_s-1]);
-
-		if(solution[size_s-1] != -1)
-		{
-			if(!e_valida(matriz, solution, size_s, count))
-			{
-				matriz[solution[count-1]][solution[count]] = 0;
-				solution[size_s-1] = -1;
-				count--;
-			} else {
-				break;
-			}
-		}
-	}
-	free(matriz);
-	return solution;
-}
-
-int* guloso_randomstart(int** matriz_entrada, int size, int num_restart, int i_grasp)
-{
-	int iterador = 0;
-	int* final_solution = NULL;
-	//srand(time(0));
-	for(iterador = 0; iterador < num_restart; iterador++)
-	{
-		srand(iterador * i_grasp);
-		int** matriz = copia_matriz(matriz_entrada, size);
-		int i, count = 1, count_2 = 0, menor, start, size_s = size-1;
-		start = rand() % size;
-		int* solution = malloc(sizeof(int)*(size_s)), *lista;
-		for(i = 1; i < size_s; i++)
-		{
-			solution[i] = -1;
-		}
-		solution[0] = start;
-		printf("Solucao: \n");
-		for(i = 0; i < size_s-1; i++)
-		{
-			printf("%d -> ", solution[i]);
-		}
-		printf("%d\n", solution[size_s-1]);
-		while(pertence(-1, solution, size_s))
-		{
-			menor = pega_menor(matriz[solution[count-1]], size, count, solution);
-			printf("MENOR: %d\n", menor);
-			if(menor == -1)
-			{
-				matriz[solution[count-1]][solution[count]] = 0;
-				count--;
-			} else {
-				count_2++;
-				if(count_2 > size+2)
-				{
-					free(solution);
-					break;
-				}
-				solution[count] = menor;
-				count++;
-			}
-			printf("Solucao: \n");
-			for(i = 0; i < size_s-1; i++)
-			{
-				printf("%d -> ", solution[i]);
-			}
-			printf("%d\n", solution[size_s-1]);
-
-			if(solution[size_s-1] != -1)
-			{
-				if(!e_valida(matriz, solution, size_s, count))
-				{
-					matriz[solution[count-1]][solution[count]] = 0;
-					solution[size_s-1] = -1;
-					count--;
-				} else {
-					break;
-				}
-			}
-		}
-		if(count_2 > size+2)
-		{
-			continue;
-		}
-		//solution = busca_local(matriz_entrada, solution, size);
-		//solution = busca_local_aprimorada(matriz_entrada, solution, size);
-		if(peso_total(final_solution, size_s, matriz) > peso_total(solution, size_s, matriz))
-		{
-			free(final_solution);
-			final_solution = solution;
-
-		}else{
-			free(solution);
-		}
-		free(matriz);
-	}
-
-	return final_solution;
-}
-
 int peso_total(int* solution, int size, int**matriz)
 {
 	int peso = 0, i;
@@ -619,51 +479,6 @@ int* busca_local(int** matriz, int* solution, int size)
            		free(nova_solution);
            }
        }
-   	}
-	return solution;
-}
-
-int* busca_local_aprimorada(int** matriz, int* solution, int size)
-{
-	int i, k, peso_atual, novo_peso, peso_old, ocorreu_swap;
-	int* nova_solution;
-	int* old_new_solution = NULL;
-	start_again:
-	peso_old = 999999999;
-	old_new_solution = NULL;
-	peso_atual = peso_total(solution, size-1, matriz);
-	ocorreu_swap = 0;
-   	for (i = 1; i < size - 3; i++) {
-       for (k = i + 1; k < size - 2; k++) {
-           	nova_solution = opt2_swap(solution, i, k, size);
-           	novo_peso = peso_total(nova_solution, size-1, matriz);
-           	if (novo_peso < peso_atual) {
-           		ocorreu_swap = 1;
-           		if(!old_new_solution)
-           		{
-           			old_new_solution = nova_solution;
-           		} else 
-           		{
-           			peso_old = peso_total(old_new_solution, size-1, matriz);
-           			if(novo_peso < peso_old)
-           			{	
-           				free(old_new_solution);
-           				old_new_solution = nova_solution;
-           			}else{
-           				free(nova_solution);
-           			}
-           		}
-           }else{
-           		free(nova_solution);
-           }
-       }
-   	}
-   	if(ocorreu_swap)
-   	{
-   		free(solution);
-        solution = old_new_solution;
-        peso_atual = peso_old;
-		goto start_again;
    	}
 	return solution;
 }
@@ -773,8 +588,6 @@ int main(int* argc, char* argv[])
 
 	
 	clock_t begin = clock();
-	//int* solution = guloso(matriz, num_cidades, 0);
-	//int* solution = guloso_randomstart(matriz, num_cidades, 100);
 
 	// MATRIZ DE ENTRADA || NUMERO DE CIDADES || QUANTIDADE DE VEZES QUE PROCURA SOLUCAO MELHOR || TARGET || ALPHA (0.0 Greedy | 1.0 Random)
 	int* solution = grasp(matriz, num_cidades, 3, 6010, 0.0);
