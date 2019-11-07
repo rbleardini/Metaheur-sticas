@@ -10,8 +10,10 @@
 //#define MAX 100000000 // ftv
 
 int** copia_matriz(int** mat_original, int num_cidades);
+int** cria_copia_matriz(int** matriz, int size, int tam);
 int** matriz_cidades(char* filename, int num_cidades);
 int* copia_lista(int* lista_original, int size);
+void limpa_matriz(int** matriz, int size);
 
 //Auxiliares
 int pertence(int elem, int* solution, int size);
@@ -19,12 +21,14 @@ int pega_menor(int* lista, int size, int count, int* solution);
 int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha);
 int elem_repetido(int* lista, int size);
 int e_valida(int** matriz, int* solution, int size, int count);
+int caminho_existe(int* solution, int size, int**matriz);
 int menor_elem(int* lista, int size, int* solution);
 int maior_elem(int* lista, int size, int* solution);
 int compare( const void* a, const void* b);
 int diferenca_simetrica(int* a, int* b, int size);
 int menor_diferenca(int* solution, int size, int** elite_set, int n_atual);
 int pega_pesada(int size, int**matriz, int** elite_set, int nE);
+int* pega_leve(int size, int**matriz, int** elite_set, int nE);
 int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int nE);
 
 int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i_grasp);
@@ -33,7 +37,7 @@ int* opt2_swap(int* solution, int i, int k, int size);
 int* busca_local(int** matriz, int* solution, int size);
 int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha);
 int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, int parameter_E, int nE, int n_atual);
-
+int* path_relinking(int* solution, int size, int** matriz, int* guide_solution);
 
 int** copia_matriz(int** matriz, int num_cidades)
 {
@@ -59,6 +63,19 @@ int** copia_matriz(int** matriz, int num_cidades)
     	coluna++;
     }
     return saida;
+}
+
+int** cria_copia_matriz(int** matriz, int size, int tam)
+{
+	int** saida = malloc(sizeof(int*)*tam);
+	int count = 0, linha = 0, coluna = 0;
+	for(int i = 0; i < tam-1; i++)
+	{
+		saida[i] = matriz[i];
+	}
+
+	free(matriz);
+	return saida;
 }
 
 int** matriz_cidades(char* filename, int num_cidades)
@@ -106,6 +123,15 @@ int** matriz_cidades(char* filename, int num_cidades)
     fclose (fp);
 
     return saida;
+}
+
+void limpa_matriz(int** matriz, int size)
+{
+	for(int i = 0; i < size; i++)
+	{
+		free(matriz[i]);
+	}
+	free(matriz);
 }
 
 int* copia_lista(int* lista_original, int size)
@@ -253,6 +279,29 @@ int e_valida(int** matriz, int* solution, int size, int count)
 	}
 }
 
+int caminho_existe(int* solution, int size, int**matriz)
+{
+	int valor;
+	if(!solution)
+	{
+		return 0;
+	}
+	for(int i = 1; i < size; i++)
+	{
+		valor = matriz[solution[i-1]][solution[i]]; 
+		if((valor == MAX) || (valor == 0))
+		{
+			return 0;
+		}
+	}
+	valor = matriz[solution[size-1]][solution[0]];
+	if((valor == MAX) || (valor == 0))
+	{
+		return 0;
+	}
+	return 1;
+}
+
 int menor_elem(int* lista, int size, int* solution)
 {
 	int i, menor = MAX;
@@ -321,11 +370,11 @@ int menor_diferenca(int* solution, int size, int** elite_set, int n_atual)
 int pega_pesada(int size, int**matriz, int** elite_set, int nE)
 {
 	int maior_peso, temp;
-	maior_peso = peso_total(elite_set[0], size+1, matriz);
+	maior_peso = peso_total(elite_set[0], size, matriz);
 
 	for(int i = 1; i < nE; i++)
 	{
-		temp = peso_total(elite_set[i], size+1, matriz);
+		temp = peso_total(elite_set[i], size, matriz);
 		if(temp > maior_peso)
 		{
 			maior_peso = temp;
@@ -335,12 +384,31 @@ int pega_pesada(int size, int**matriz, int** elite_set, int nE)
 	return maior_peso;
 }
 
+int* pega_leve(int size, int**matriz, int** elite_set, int nE)
+{
+	int menor_peso, temp, *saida = copia_lista(elite_set[0], size);
+	menor_peso = peso_total(elite_set[0], size, matriz);
+
+	for(int i = 1; i < nE; i++)
+	{
+		temp = peso_total(elite_set[i], size, matriz);
+		if(temp < menor_peso)
+		{
+			free(saida);
+			menor_peso = temp;
+			saida = copia_lista(elite_set[i], size);
+		}
+	}
+
+	return saida;
+}
+
 int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int nE)
 {
 	int indice = size+1, dif, peso, dif_aux, peso_aux, peso_temp;
 	dif = diferenca_simetrica(solution, elite_set[0], size);
-	peso = peso_total(solution, size+1, matriz);
-	peso_temp = peso_total(elite_set[0], size+1, matriz);
+	peso = peso_total(solution, size, matriz);
+	peso_temp = peso_total(elite_set[0], size, matriz);
 
 	if(peso <= peso_temp)
 	{
@@ -350,7 +418,7 @@ int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int
 	for(int i = 1; i < nE; i++)
 	{
 		dif_aux = diferenca_simetrica(solution, elite_set[i], size);
-		peso_aux = peso_total(elite_set[i], size+1, matriz);
+		peso_aux = peso_total(elite_set[i], size, matriz);
 
 		if((dif_aux < dif) && (peso <= peso_aux))
 		{
@@ -440,6 +508,25 @@ int peso_total(int* solution, int size, int**matriz)
 	return peso;
 }
 
+int* swap(int* solution, int i, int k, int size)
+{
+	int* swap = copia_lista(solution, size);
+	
+	for(int j = 0; j < size; j++)
+	{
+		if(swap[j] == i)
+		{
+			swap[j] = k;
+		}
+		else if(swap[j] == k)
+		{
+			swap[j] = i;
+		}
+	}
+
+	return swap;
+}
+
 int* opt2_swap(int* solution, int i, int k, int size)
 {
 	int* swap = malloc(sizeof(int)*size);
@@ -517,6 +604,55 @@ int* grasp(int** matriz_entrada, int size, int num_restart, int target, double a
 	return solution;
 }
 
+int* grasp_pr(int** matriz_entrada, int size, int num_restart, int nE, int parameter_E, int target, double alpha)
+{
+	int i;
+	int** elite_set = malloc(sizeof(int*) * nE);
+	int* aux_solution = NULL;
+	int peso_aux = 0, n_atual = 0, random;
+	
+	for(i = 1; i <= num_restart; i++)
+	{
+		srand(i);
+		aux_solution = guloso_grasp(matriz_entrada, size, rand() % size, alpha, i);
+		if(aux_solution == NULL){
+			continue;
+		}
+		aux_solution = busca_local(matriz_entrada, aux_solution, size);
+		
+		if(n_atual > 0)
+		{
+			random = rand() % n_atual;
+			printf("CHEGOU NO PR\n");
+			aux_solution = path_relinking(aux_solution, size-1, matriz_entrada, elite_set[random]);
+			printf("PASSOU PR\n");
+		}
+
+		printf("ATUALIZANDO ELITE SET\n");
+		elite_set = update_elite_set(aux_solution, size-1, matriz_entrada, elite_set, parameter_E, nE, n_atual);
+		printf("TERMINOU DE ATUALIZAR ELITE SET\n");
+
+		if(n_atual < nE)
+		{
+			n_atual += 1;
+		}
+
+		peso_aux = peso_total(aux_solution, size-1, matriz_entrada);
+		
+		if(peso_aux <= target)
+		{
+			return aux_solution;
+		}
+		
+	}
+
+	int *saida = copia_lista(pega_leve(size-1, matriz_entrada, elite_set, n_atual), size-1);
+
+	limpa_matriz(elite_set, n_atual);
+
+	return saida;
+}
+
 /*
 	passar size como size - 1
 	atualizar o n_atual + 1, sempre que essa função for chamada, caso n_atual < nE
@@ -545,7 +681,7 @@ int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, i
 	else{
 		menor_dif = menor_diferenca(solution, size, elite_set, n_atual);
 		maior_peso = pega_pesada(size, matriz, elite_set, nE);
-		int peso_solution = peso_total(solution, size+1, matriz), indice;
+		int peso_solution = peso_total(solution, size, matriz), indice;
 		
 		if((peso_solution < maior_peso) && (menor_dif > parameter_E))
 		{
@@ -562,6 +698,81 @@ int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, i
 	}
 
 	return elite_set;
+}
+
+/*
+	Passar size como size-1
+	size = tamanho da solution
+*/
+int* path_relinking(int* solution, int size, int** matriz, int* guide_solution)
+{
+	int **matriz_n;
+	int* saida = copia_lista(solution, size);
+	int peso_saida = peso_total(saida, size, matriz), n, i, aux_n, tam_matriz, peso_aux;
+	n = diferenca_simetrica(solution, guide_solution, size);
+
+	while(n > 0)
+	{
+		int *lista_nos = malloc(sizeof(int)*n), *aux_solution; 
+		aux_n = 0, tam_matriz = 0;
+		for(i = 0; i < size; i++)
+		{
+			if(solution[i] != guide_solution[i])
+			{
+				lista_nos[aux_n] = i;
+				aux_n += 1;
+			}
+
+			if(aux_n == n)
+			{
+				break;
+			}
+		}
+
+
+		matriz_n = NULL;
+		for(i = 0; i < n; i++)
+		{
+			for(int j = 1; j < n; j++)
+			{
+				aux_solution = swap(solution, lista_nos[i], lista_nos[j], size);
+
+				if(caminho_existe(aux_solution, size, matriz))
+				{
+					tam_matriz += 1;
+					matriz_n = cria_copia_matriz(matriz_n, size, tam_matriz);
+					matriz_n[tam_matriz-1] = aux_solution;
+				}
+				else{
+					free(aux_solution);
+				}
+
+			}
+		}
+
+		if(tam_matriz > 0)
+		{
+			free(solution);
+			solution = pega_leve(size, matriz, matriz_n, tam_matriz);
+			limpa_matriz(matriz_n, tam_matriz);
+
+			peso_aux = peso_total(solution, size, matriz); 
+
+			if(peso_aux < peso_saida)
+			{
+				free(saida);
+				saida = copia_lista(solution, size);
+				peso_saida = peso_aux;		
+			}
+		}else{
+			break;
+		}
+
+		free(lista_nos);
+		n = diferenca_simetrica(solution, guide_solution, size);
+	}
+
+	return busca_local(matriz, saida, size+1);
 }
 
 int main(int* argc, char* argv[])
@@ -593,7 +804,10 @@ int main(int* argc, char* argv[])
 	clock_t begin = clock();
 
 	// MATRIZ DE ENTRADA || NUMERO DE CIDADES || QUANTIDADE DE VEZES QUE PROCURA SOLUCAO MELHOR || TARGET || ALPHA (0.0 Greedy | 1.0 Random)
-	int* solution = grasp(matriz, num_cidades, 3, 6010, 0.0);
+	//int* solution = grasp(matriz, num_cidades, 3, 6010, 0.0);
+
+	//MATRIZ DE ENTRADA, NUMERO DE CIDADES, QUANTIDADE DE VEZES, TAMANHO DO ELITE_SET, DIF ACEITAVEL, TARGET, ALPHA)
+	int* solution = grasp_pr(matriz, num_cidades, 5, 3, 20, 6010, 0.0);
 
 	time_t end = clock();
 
