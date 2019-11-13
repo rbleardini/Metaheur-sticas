@@ -5,8 +5,8 @@
 
 #define MAXCHAR 1000
 //#define MAX 9999 //br17 p43
-#define MAX 40 //rbg
-//#define MAX 9999999 // ft, kro, ry
+//#define MAX 40 //rbg
+#define MAX 9999999 // ft, kro, ry
 //#define MAX 100000000 // ftv
 
 int** copia_matriz(int** mat_original, int num_cidades);
@@ -35,7 +35,8 @@ int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i
 int peso_total(int* solution, int size, int**matriz);
 int* opt2_swap(int* solution, int i, int k, int size);
 int* busca_local(int** matriz, int* solution, int size);
-int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha);
+int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha, double time);
+int* grasp_pr(int** matriz_entrada, int size, int num_restart, int nE, int parameter_E, int target, double alpha, double time);
 int** update_elite_set(int* solution, int size, int** matriz, int** elite_set, int parameter_E, int nE, int n_atual);
 int* path_relinking(int* solution, int size, int** matriz, int* guide_solution);
 
@@ -446,16 +447,16 @@ int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i
 		solution[i] = -1;
 	}
 	solution[0] = start;
-	printf("Solucao: \n");
+	/*printf("Solucao: \n");
 	for(i = 0; i < size_s-1; i++)
 	{
 		printf("%d -> ", solution[i]);
 	}
 	printf("%d\n", solution[size_s-1]);
-	while(pertence(-1, solution, size_s))
+	*/while(pertence(-1, solution, size_s))
 	{
 		menor = pega_aleatorio(matriz[solution[count-1]], size, count, solution, i_grasp, alpha);
-		printf("MENOR: %d\n", menor);
+		//printf("MENOR: %d\n", menor);
 		if(menor == -1)
 		{
 			matriz[solution[count-1]][solution[count]] = MAX;
@@ -471,13 +472,13 @@ int* guloso_grasp(int** matriz_entrada, int size, int start, double alpha, int i
 			solution[count] = menor;
 			count++;
 		}
-		printf("Solucao: \n");
+		/*printf("Solucao: \n");
 		for(i = 0; i < size_s-1; i++)
 		{
 			printf("%d -> ", solution[i]);
 		}
 		printf("%d\n", solution[size_s-1]);
-		if(solution[size_s-1] != -1)
+		*/if(solution[size_s-1] != -1)
 		{
 			if(!e_valida(matriz, solution, size_s, count))
 			{
@@ -554,7 +555,7 @@ int* busca_local(int** matriz, int* solution, int size)
 	start_again:
 	peso_atual = peso_total(solution, size-1, matriz);
    	for (i = 1; i < size - 3; i++) {
-       for (k = i + 1; k < size - 2; k++) {
+        for (k = i + 1; k < size - 2; k++) {
            	nova_solution = opt2_swap(solution, i, k, size);
            	novo_peso = peso_total(nova_solution, size-1, matriz);
            	if (novo_peso < peso_atual) {
@@ -570,17 +571,23 @@ int* busca_local(int** matriz, int* solution, int size)
 	return solution;
 }
 
-int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha)
+int* grasp(int** matriz_entrada, int size, int num_restart, int target, double alpha, double time)
 {
-	int i;
+	int i = 1;
 	int* solution = NULL; 
 	int* aux_solution = NULL;
 	int peso_aux = 0;
-	for(i = 1; i <= num_restart; i++)
+	clock_t begin = clock();
+	time_t end;
+	double time_spent = 0.0;
+	while(time_spent < time)
 	{
 		srand(i);
 		aux_solution = guloso_grasp(matriz_entrada, size, rand() % size, alpha, i);
 		if(aux_solution == NULL){
+			i += 1;
+			end = clock();
+			time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
 			continue;
 		}
 		aux_solution = busca_local(matriz_entrada, aux_solution, size);
@@ -600,22 +607,32 @@ int* grasp(int** matriz_entrada, int size, int num_restart, int target, double a
 		{
 			free(aux_solution);
 		}
+		end = clock();
+		time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
+		printf("%f\n", time_spent);
+		i += 1;
 	}
 	return solution;
 }
 
-int* grasp_pr(int** matriz_entrada, int size, int num_restart, int nE, int parameter_E, int target, double alpha)
+int* grasp_pr(int** matriz_entrada, int size, int num_restart, int nE, int parameter_E, int target, double alpha, double time)
 {
-	int i;
+	int i = 1;
 	int** elite_set = malloc(sizeof(int*) * nE);
 	int* aux_solution = NULL;
 	int peso_aux = 0, n_atual = 0, random;
-	
-	for(i = 1; i <= num_restart; i++)
+	clock_t begin = clock();
+	time_t end;
+	double time_spent = 0.0;
+
+	while(time_spent < time)
 	{
 		srand(i);
 		aux_solution = guloso_grasp(matriz_entrada, size, rand() % size, alpha, i);
 		if(aux_solution == NULL){
+			i += 1;
+			end = clock();
+			time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
 			continue;
 		}
 		aux_solution = busca_local(matriz_entrada, aux_solution, size);
@@ -643,7 +660,10 @@ int* grasp_pr(int** matriz_entrada, int size, int num_restart, int nE, int param
 		{
 			return aux_solution;
 		}
-		
+		end = clock();
+		time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
+		printf("%f\n", time_spent);
+		i += 1;
 	}
 
 	int *saida = copia_lista(pega_leve(size-1, matriz_entrada, elite_set, n_atual), size-1);
@@ -710,7 +730,7 @@ int* path_relinking(int* solution, int size, int** matriz, int* guide_solution)
 	int* saida = copia_lista(solution, size);
 	int peso_saida = peso_total(saida, size, matriz), n, i, aux_n, tam_matriz, peso_aux;
 	n = diferenca_simetrica(solution, guide_solution, size);
-
+	int count = 0;
 	while(n > 0)
 	{
 		int *lista_nos = malloc(sizeof(int)*n), *aux_solution; 
@@ -770,6 +790,12 @@ int* path_relinking(int* solution, int size, int** matriz, int* guide_solution)
 
 		free(lista_nos);
 		n = diferenca_simetrica(solution, guide_solution, size);
+		
+		if(count > size+1){
+			break;
+		}
+
+		count += 1;
 	}
 
 	return busca_local(matriz, saida, size+1);
@@ -777,12 +803,12 @@ int* path_relinking(int* solution, int size, int** matriz, int* guide_solution)
 
 int main(int* argc, char* argv[])
 {	
-	int num_cidades = 443;
+	int num_cidades = 70;
 	//int **matriz = matriz_cidades("br17.atsp.txt", num_cidades);
-	int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
+	//int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv170.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ft53.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
+	int **matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv33.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv35.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv38.atsp.txt", num_cidades);
@@ -791,11 +817,11 @@ int main(int* argc, char* argv[])
 	//int **matriz = matriz_cidades("ftv55.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv64.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv70.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("kro124p.atsp.txt", num_cidades); //NAO
 	//int **matriz = matriz_cidades("p43.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("rbg323.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("rbg358.atsp.txt", num_cidades); //NAO
 	//int **matriz = matriz_cidades("rbg403.atsp.txt", num_cidades); //NAO
+	//int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ry48p.atsp.txt", num_cidades);
 
 	int i, j;
@@ -803,11 +829,12 @@ int main(int* argc, char* argv[])
 	
 	clock_t begin = clock();
 
+	int target = 40500;
 	// MATRIZ DE ENTRADA || NUMERO DE CIDADES || QUANTIDADE DE VEZES QUE PROCURA SOLUCAO MELHOR || TARGET || ALPHA (0.0 Greedy | 1.0 Random)
-	//int* solution = grasp(matriz, num_cidades, 3, 6010, 0.0);
+	int* solution = grasp(matriz, num_cidades, 1000000, target, 0.2, 180.0);
 
-	//MATRIZ DE ENTRADA, NUMERO DE CIDADES, QUANTIDADE DE VEZES, TAMANHO DO ELITE_SET, DIF ACEITAVEL, TARGET, ALPHA)
-	int* solution = grasp_pr(matriz, num_cidades, 5, 3, 20, 6010, 0.0);
+	//MATRIZ DE ENTRADA, NUMERO DE CIDADES, QUANTIDADE DE VEZES, TAMANHO DO ELITE_SET, DIF ACEITAVEL, TARGET, ALPHA, TIME)
+	//int* solution = grasp_pr(matriz, num_cidades, 1000000, 5, 1, target, 0.2, 180.0);
 
 	time_t end = clock();
 
