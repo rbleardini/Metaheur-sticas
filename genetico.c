@@ -6,10 +6,11 @@
 #define MAXCHAR 1000
 //#define MAX 9999 //br17 p43
 //#define MAX 40 //rbg
-#define MAX 9999999 // ft, kro, ry
-//#define MAX 100000000 // ftv
+//#define MAX 9999999 // ft, kro, ry
+#define MAX 100000000 // ftv
 
 int** copia_matriz(int** mat_original, int num_cidades);
+int** copia_matriz2(int** matriz, int linhas, int colunas);
 int** cria_copia_matriz(int** matriz, int size, int tam);
 int** matriz_cidades(char* filename, int num_cidades);
 int* copia_lista(int* lista_original, int size);
@@ -25,16 +26,22 @@ int caminho_existe(int* solution, int size, int**matriz);
 int menor_elem(int* lista, int size, int* solution);
 int maior_elem(int* lista, int size, int* solution);
 int compare( const void* a, const void* b);
-int diferenca_simetrica(int* a, int* b, int size);
+int diferente(int* a, int* b, int size_s);
 int menor_diferenca(int* solution, int size, int** elite_set, int n_atual);
 int pega_pesada(int size, int**matriz, int** elite_set, int nE);
 int* pega_leve(int size, int**matriz, int** elite_set, int nE);
 int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int nE);
+int pesa_arestas(int **matriz, int size);
 
-int* guloso(int** matriz_entrada, int size, int start);
-int peso_total(int* solution, int size, int**matriz);
+int* guloso(int** matriz_entrada, int size, int start, int iter);
+int peso_total(int* solution, int size_s, int**matriz);
 int** gerar_populacao(int** matriz_entrada, int size, int tam_pop);
-int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int mutacao, int iter);
+int fitness(int peso_s, int peso_arestas);
+int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter);
+int inserir_filho(int** matriz_entrada, int size, int** populacao, int tam_pop, int* filho);
+int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter);
+int** cruzamento_s(int* pai_elite, int* pai_normal, int size_s, int iter);
+void mutacao(int **populacao, int tam_pop, int size_s, int num_cidades, int iter);
 
 int** copia_matriz(int** matriz, int num_cidades)
 {
@@ -59,6 +66,26 @@ int** copia_matriz(int** matriz, int num_cidades)
     	saida[linha][coluna] = matriz[linha][coluna];
     	coluna++;
     }
+    return saida;
+}
+
+int** copia_matriz2(int** matriz, int linhas, int colunas)
+{
+	int** saida = malloc(sizeof(int*)*linhas);
+	int i = 0, count = 0, linha = 0, coluna = 0;
+	for(int linha = 0; linha < linhas; linha++)
+	{
+		saida[i] = copia_lista(matriz[i], colunas);
+	}
+	for(i = 0; i < linhas; i++)
+	{
+		for(int j = 0; j < colunas; j++)
+		{
+			printf("%d\t", saida[i][j]);
+		}
+		printf("\n");
+		//free(matriz[i]);
+	}
     return saida;
 }
 
@@ -169,6 +196,81 @@ int pega_menor(int* lista, int size, int count, int* solution)
 	return menor_i;
 }
 
+int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha)
+{
+	// copia é a lista de pesos de entrada ordenada
+	// n é lista de indices
+
+	int i, j, elem = -1, tam_array = 0;
+	int aux[size];
+
+	for(i = 0; i < size; i++)
+	{
+		if((lista[i] != 0) && (lista[i] != MAX) && (!pertence(i, solution, size-1)))
+		{
+			aux[tam_array] = i;
+			tam_array += 1;
+		}
+	}
+
+	if(tam_array > 0)
+	{
+
+		int cmin, cmax, menor, j;
+		double parameter_with_alpha;
+
+		cmin = menor_elem(lista, size, solution);
+		cmax = maior_elem(lista, size, solution);
+
+		parameter_with_alpha = (double)cmin + alpha * ((double)cmax - (double)cmin);
+
+
+		int pesos[tam_array];
+
+		for(i = 0; i < tam_array; i++)
+		{
+			pesos[i] = lista[aux[i]];
+		}
+
+		int temp_peso, temp_i;
+		for (int step = 0; step < tam_array - 1; step++)
+		{
+		    int min_idx = step;
+		    for (i = step + 1; i < tam_array; i++)
+		    {
+		      	if (pesos[i] < pesos[min_idx])
+		      	{
+		      		min_idx = i;	
+		      	} 
+		    }
+		    if(min_idx != step)
+		    {
+		    	temp_i = aux[min_idx];
+		    	temp_peso = pesos[min_idx];
+		    	aux[min_idx] = aux[step];
+		    	pesos[min_idx] = pesos[step];
+		    	aux[step] = temp_i;
+		    	pesos[step] = temp_peso;
+		    }
+		}
+
+		srand(i_grasp);
+		int random_number;
+
+		while(elem == -1)
+		{
+			random_number = rand() % tam_array;
+			if((double)lista[aux[random_number]] <= parameter_with_alpha){
+				elem = aux[random_number];
+			}
+		}
+		
+		return elem;
+	}
+
+	return elem;
+}
+
 int elem_repetido(int* lista, int size)
 {
 	int i, j, count = 1;
@@ -260,9 +362,22 @@ int compare( const void* a, const void* b)
      else return 1;
 }
 
+int diferente(int* a, int* b, int size_s)
+{
+	for(int i = 0; i < size_s; i++)
+	{
+		if(a[i] != b[i])
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int* pega_leve(int size, int**matriz, int** elite_set, int nE)
 {
-	int menor_peso, temp, *saida = copia_lista(elite_set[0], size);
+	int menor_peso, temp, *saida = copia_lista(elite_set[0], size), indice = 0;
+
 	menor_peso = peso_total(elite_set[0], size, matriz);
 
 	for(int i = 1; i < nE; i++)
@@ -273,14 +388,34 @@ int* pega_leve(int size, int**matriz, int** elite_set, int nE)
 			free(saida);
 			menor_peso = temp;
 			saida = copia_lista(elite_set[i], size);
+
+			indice = i;
+		}
+	}
+	free(saida);
+	return elite_set[indice];
+}
+
+int pesa_arestas(int **matriz, int size)
+{
+	int total = 0;
+	for(int i = 0; i < size; i++)
+	{
+		for(int j = 0; j < size; j++)
+		{
+			if(matriz[i][j] != MAX)
+			{
+				total += matriz[i][j];
+			}
 		}
 	}
 
-	return saida;
+	return total;
 }
 
-int* guloso(int** matriz_entrada, int size, int start)
+int* guloso(int** matriz_entrada, int size, int start, int iter)
 {
+	double alpha = 0.2;
 	int** matriz = copia_matriz(matriz_entrada, size);
 	int i, count = 1, count_2 = 0, menor, size_s = size-1;
 	int random_number;
@@ -298,7 +433,7 @@ int* guloso(int** matriz_entrada, int size, int start)
 	printf("%d\n", solution[size_s-1]);
 	*/while(pertence(-1, solution, size_s))
 	{
-		menor = pega_menor(matriz[solution[count-1]], size, count, solution);
+		menor = pega_aleatorio(matriz[solution[count-1]], size, count, solution, iter, alpha);
 		//printf("MENOR: %d\n", menor);
 		if(menor == -1)
 		{
@@ -334,37 +469,112 @@ int* guloso(int** matriz_entrada, int size, int start)
 		}
 	}
 	free(matriz);
+
 	return solution;
 }
 
-int peso_total(int* solution, int size, int**matriz)
+int peso_total(int* solution, int size_s, int**matriz)
 {
 	int peso = 0, i;
 	if(!solution)
 	{
 		return 999999999;
 	}
-	for(i = 1; i < size; i++)
+	for(i = 1; i < size_s; i++)
 	{
 		peso += matriz[solution[i-1]][solution[i]];
 	}
-	peso += matriz[solution[size-1]][solution[0]];
+	peso += matriz[solution[size_s-1]][solution[0]];
 	return peso;
 }
 
 int** gerar_populacao(int** matriz_entrada, int size, int tam_pop)
 {
-	int **populacao = malloc(sizeof(int*)*tam_pop), individuos = 0;
-	while(individuos < tam_pop)
+	int **populacao = malloc(sizeof(int*)*tam_pop), individuos = 0, *solution;
+	srand(0);
+	for(int i = 0; i < tam_pop; i++)
 	{
-		srand(individuos);
-		populacao[individuos] = guloso(matriz_entrada, size, rand() % size);
-		individuos++;
+		solution = guloso(matriz_entrada, size, rand() % size, i);
+		if(solution == NULL)
+		{
+			i -= 1;
+			continue;
+		}
+		populacao[i] = solution;
 	}
 	return populacao;
 }
 
-int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int mutacao, int iter)
+int fitness(int peso_s, int peso_arestas)
+{
+	return (peso_arestas)/(1 - peso_s);
+}
+
+int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter)
+{
+
+	int **pais = malloc(sizeof(int*)*2);
+	
+	pais[1] = NULL;
+	srand(iter);
+	/*
+	int tournament_size = rand() % tam_pop;
+	if(tournament_size < 1)
+	{
+		tournament_size = 1;
+	}
+	int **tournament = malloc(sizeof(int*)*tournament_size);
+	int *solution;
+	for(int i = 0; i < tournament_size; i++)
+	{
+		tournament[i] = populacao[rand() % tam_pop];
+	}
+	pais[0] = pega_leve(size_s, matriz_entrada, tournament, tournament_size);
+	for(int i = 0; i < tournament_size; i++)
+	{
+		tournament[i] = populacao[rand() % tam_pop];
+	}
+	solution = pega_leve(size_s, matriz_entrada, tournament, tournament_size);
+	int ind = 0;
+	while(!diferente(pais[0], solution, size_s))
+	{
+		solution = tournament[ind];
+		ind++;
+	}
+	pais[1] = solution;
+	free(tournament);
+	*/
+	int random;
+	random = rand() % tam_pop;
+	pais[0] = pega_leve(size_s, matriz_entrada, populacao, tam_pop);
+	pais[1] = populacao[random];
+
+	return pais;
+}
+
+int inserir_filho(int** matriz_entrada, int size_s, int** populacao, int tam_pop, int* filho)
+{
+	int pior_indice = 0, pior_peso = peso_total(populacao[0], size_s, matriz_entrada), peso_aux;
+	for(int k = 0; k < tam_pop; k++)
+	{
+		peso_aux = peso_total(populacao[k], size_s, matriz_entrada);
+		if(peso_aux >= pior_peso)
+		{
+			pior_peso = peso_aux;
+			pior_indice = k;
+		}
+	}
+	if(peso_total(filho, size_s, matriz_entrada) < pior_peso)
+	{
+		free(populacao[pior_indice]);
+		populacao[pior_indice] = filho;
+		return 1;
+	}
+	free(filho);
+	return 0;
+}
+
+int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter)
 {
 	int *filho = malloc(sizeof(int)*size_s), random, cidade;
 	srand(iter);
@@ -379,25 +589,12 @@ int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int mutacao, int it
 		{
 			continue;
 		}
-		if(random <= mutacao)
+		if(random <= 70)
 		{
-			cidade = rand() % (size_s+1);
-			filho[i] = cidade;
-		}
-		else if(random <= 70)
-		{
-			if(pertence(pai_elite[i], filho, size_s))
-			{
-				if(!pertence(pai_normal[i], filho, size_s))
-				{
-					filho[i] = pai_normal[i];
-				}
-				continue;
-			}
 			filho[i] = pai_elite[i];
 			if(pai_elite[i] != pai_normal[i])
 			{
-				for(j = i; j < size_s; j++)
+				for(int j = i; j < size_s; j++)
 				{
 					if(pai_elite[j] == pai_normal[i])
 					{
@@ -408,18 +605,10 @@ int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int mutacao, int it
 		}
 		else
 		{
-			if(pertence(pai_normal[i], filho, size_s))
-			{
-				if(!pertence(pai_elite[i], filho, size_s))
-				{
-					filho[i] = pai_elite[i];
-				}
-				continue;
-			}
 			filho[i] = pai_normal[i];
 			if(pai_elite[i] != pai_normal[i])
 			{
-				for(j = i; j < size_s; j++)
+				for(int j = i; j < size_s; j++)
 				{
 					if(pai_normal[j] == pai_elite[i])
 					{
@@ -431,6 +620,91 @@ int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int mutacao, int it
 	}
 
 	return filho;
+}
+
+int** cruzamento_s(int* pai_elite, int* pai_normal, int size_s, int iter)
+{
+	int *filho_1, *filho_2, random, cidade, sub_trecho_size, indice, i, k, elem1, elem2, trocados1 = 0, trocados2 = 0;
+	srand(iter);
+	filho_1 = copia_lista(pai_elite, size_s);
+	filho_2 = copia_lista(pai_normal, size_s);
+	sub_trecho_size = size_s / 4;
+	indice = rand() % (size_s - sub_trecho_size);
+	int aux;
+	for(i = indice; i < sub_trecho_size; i++)
+	{
+		aux = filho_1[i];
+		filho_1[i] = filho_2[i];
+		filho_2[i] = aux;
+	}
+	for(k = 0; k < indice; k++)
+	{
+		elem1 = filho_1[k];
+		elem2 = filho_2[k];
+		for(i = indice; i < sub_trecho_size; i++)
+		{
+			if(elem1 == filho_1[i])
+			{
+				filho_1[k] = filho_2[trocados1+indice];
+				trocados1 += 1;
+			}
+			if(elem2 == filho_2[i])
+			{
+				filho_2[k] = filho_1[trocados2+indice];
+				trocados2 += 1;
+			}
+		}	
+	}
+	for(k = indice+sub_trecho_size; k < size_s; k++)
+	{
+		elem1 = filho_1[k];
+		elem2 = filho_2[k];
+		for(i = indice; i < sub_trecho_size; i++)
+		{
+			if(elem1 == filho_1[i])
+			{
+				filho_1[k] = filho_2[trocados1+indice];
+				trocados1 += 1;
+			}
+			if(elem2 == filho_2[i])
+			{
+				filho_2[k] = filho_1[trocados2+indice];
+				trocados2 += 1;
+			}
+		}	
+	}
+	int **filhos = malloc(sizeof(int*)*2);
+	filhos[0] = filho_1;
+	filhos[1] = filho_2;
+
+	return filhos;
+}
+
+void mutacao(int **populacao, int tam_pop, int size_s, int num_cidades, int iter)
+{
+	srand(iter);
+	int mutacoes = rand() % 4, filho_i, *filho, indice, nova_cidade, aux;
+	for(int i = 0; i < mutacoes; i++)
+	{
+		filho_i = rand() % tam_pop;
+		filho = populacao[filho_i];
+		indice = rand() % size_s;
+		nova_cidade = rand() % num_cidades;
+		aux = filho[indice];
+		filho[indice] = nova_cidade;
+		for(int j = 0; j < size_s; j++)
+		{
+			if(j == indice)
+			{
+				continue;
+			}
+			if(filho[j] == nova_cidade)
+			{
+				filho[j] = aux;
+				break;
+			}
+		}
+	}
 }
 
 int* swap(int* solution, int i, int k, int size)
@@ -452,6 +726,79 @@ int* swap(int* solution, int i, int k, int size)
 	return swap;
 }
 
+int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos)
+{
+	int size_s = size - 1, *saida;
+	int **populacao2, **populacao = gerar_populacao(matriz_entrada, size, tam_pop), procura = 0, iter = 0, **pais, **filhos, k;
+	while(procura < limite)
+	{
+		srand(iter);
+		/*
+		populacao2 = malloc(sizeof(int*) * tam_pop);
+		for(int i = 0; i < tam_pop; i++)
+		{
+			populacao2[i] = malloc(sizeof(int) * size_s);
+		}		
+		memcpy(populacao2, populacao, tam_pop * size_s * sizeof(int));		
+		*/
+		for(int i = 0; i < cruzamentos; i++)
+		{
+			pais = seleciona_pais(matriz_entrada, size, populacao, tam_pop, size_s, rand());
+			filhos = cruzamento_s(pais[0], pais[1], size_s, iter);
+			if(peso_total(filhos[0], size_s, matriz_entrada) <= target)
+			{
+				saida = copia_lista(filhos[0], size_s);
+				for(k = 0; k < tam_pop; k++)
+				{
+					free(populacao[k]);
+				}
+				free(populacao);
+				free(pais);
+				free(filhos[0]);
+				free(filhos[1]);
+				free(filhos);
+				return saida;
+			}
+			else if(peso_total(filhos[1], size_s, matriz_entrada) <= target)
+			{
+				saida = copia_lista(filhos[1], size_s);
+				for(k = 0; k < tam_pop; k++)
+				{
+					free(populacao[k]);
+				}
+				free(populacao);
+				free(pais);
+				free(filhos[0]);
+				free(filhos[1]);
+				free(filhos);
+				return saida;
+			}
+			if(inserir_filho(matriz_entrada, size_s, populacao, tam_pop, filhos[0])
+				|| inserir_filho(matriz_entrada, size_s, populacao, tam_pop, filhos[1]))
+			{
+				procura = 0;
+			}
+			else
+			{
+				procura += 1;
+			}
+			free(filhos);
+			free(pais);
+		}
+		mutacao(populacao, tam_pop, size_s, size, iter);
+		printf("Mutou\n");
+		iter++;
+	}
+
+	saida = copia_lista(pega_leve(size_s, matriz_entrada, populacao, tam_pop), size_s);
+	for(k = 0; k < tam_pop; k++)
+	{
+		free(populacao[k]);
+	}
+	free(populacao);
+	return saida;
+}
+
 int main(int* argc, char* argv[])
 {	
 	int num_cidades = 70;
@@ -459,7 +806,7 @@ int main(int* argc, char* argv[])
 	//int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv170.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ft53.atsp.txt", num_cidades);
-	int **matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
+	//int **matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv33.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv35.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv38.atsp.txt", num_cidades);
@@ -467,7 +814,7 @@ int main(int* argc, char* argv[])
 	//int **matriz = matriz_cidades("ftv47.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv55.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("ftv64.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv70.atsp.txt", num_cidades);
+	int **matriz = matriz_cidades("ftv70.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("p43.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("rbg323.atsp.txt", num_cidades);
 	//int **matriz = matriz_cidades("rbg358.atsp.txt", num_cidades); //NAO
@@ -480,8 +827,9 @@ int main(int* argc, char* argv[])
 	
 	clock_t begin = clock();
 
+	//(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos)
+	int *solution = genetico(matriz, num_cidades, 30, 39, 10, 8);
 
-	
 	time_t end = clock();
 
 	int peso = peso_total(solution, num_cidades-1, matriz);
@@ -489,7 +837,7 @@ int main(int* argc, char* argv[])
 
 	for(i = 0; i < num_cidades; i++)
 	{
-		for(j = 0; j < num_cidades; j++)
+		for(int j = 0; j < num_cidades; j++)
 		{
 			//printf("%d\t", matriz[i][j]);
 		}
