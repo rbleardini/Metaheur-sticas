@@ -4,46 +4,32 @@
 #include <time.h>
 
 #define MAXCHAR 1000
-//#define MAX 9999 //br17 p43
-//#define MAX 40 //rbg
-#define MAX 9999999 // ft, kro, ry
-//#define MAX 100000000 // ftv
 
 int** copia_matriz(int** mat_original, int num_cidades);
-int** copia_matriz2(int** matriz, int linhas, int colunas);
 int** cria_copia_matriz(int** matriz, int size, int tam);
 int** matriz_cidades(char* filename, int num_cidades);
 int* copia_lista(int* lista_original, int size);
-int** ordena_lista(int** matriz_entrada, int** lista_original, int size, int size_s, int size_lista);
+int** ordena_lista(int** matriz_entrada, int** lista_original, int size, int size_s, int size_lista, int val_a);
 void limpa_matriz(int** matriz, int size);
 long long current_timestamp(); 
 
 //Auxiliares
 int pertence(int elem, int* solution, int size);
-int pega_menor(int* lista, int size, int count, int* solution);
-int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha);
-int elem_repetido(int* lista, int size);
-int e_valida(int** matriz, int* solution, int size, int count);
-int caminho_existe(int* solution, int size, int**matriz);
-int menor_elem(int* lista, int size, int* solution);
-int maior_elem(int* lista, int size, int* solution);
-int compare( const void* a, const void* b);
-int diferente(int* a, int* b, int size_s);
-int menor_diferenca(int* solution, int size, int** elite_set, int n_atual);
-int pega_pesada(int size, int**matriz, int** elite_set, int nE);
-int* pega_leve(int size, int**matriz, int** elite_set, int nE);
-int pega_menor_pesada(int* solution, int size, int**matriz, int** elite_set, int nE);
-int pesa_arestas(int **matriz, int size);
+int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha, int MAX);
+int e_valida(int** matriz, int* solution, int size, int count, int MAX);
+int menor_elem(int* lista, int size, int* solution, int MAX);
+int maior_elem(int* lista, int size, int* solution, int MAX);
+int pesa_arestas(int **matriz, int size, int MAX);
 
-int* guloso(int** matriz_entrada, int size, int start, int iter);
+int* guloso(int** matriz_entrada, int size, int start, int iter, int MAX);
 int peso_total(int* solution, int size_s, int**matriz);
-int** gerar_populacao(int** matriz_entrada, int size, int tam_pop);
+int** gerar_populacao(int** matriz_entrada, int size, int tam_pop, int MAX);
 int fitness(int peso_s, int peso_arestas);
-int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter);
-int inserir_filho(int** matriz_entrada, int size, int** populacao, int tam_pop, int* filho);
-int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter);
-int** cruzamento_s(int* pai_elite, int* pai_normal, int size_s, int iter);
+int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter, int val_a);
+int inserir_filho(int** matriz_entrada, int size, int** populacao, int tam_pop, int* filho, int val_a);
+int** cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter);
 int* mutacao(int *filho, int size_s, int num_cidades, int iter);
+int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos, int MAX);
 
 int** copia_matriz(int** matriz, int num_cidades)
 {
@@ -69,39 +55,6 @@ int** copia_matriz(int** matriz, int num_cidades)
     	coluna++;
     }
     return saida;
-}
-
-int** copia_matriz2(int** matriz, int linhas, int colunas)
-{
-	int** saida = malloc(sizeof(int*)*linhas);
-	int i = 0, count = 0, linha = 0, coluna = 0;
-	for(int linha = 0; linha < linhas; linha++)
-	{
-		saida[i] = copia_lista(matriz[i], colunas);
-	}
-	for(i = 0; i < linhas; i++)
-	{
-		for(int j = 0; j < colunas; j++)
-		{
-			printf("%d\t", saida[i][j]);
-		}
-		printf("\n");
-		//free(matriz[i]);
-	}
-    return saida;
-}
-
-int** cria_copia_matriz(int** matriz, int size, int tam)
-{
-	int** saida = malloc(sizeof(int*)*tam);
-	int count = 0, linha = 0, coluna = 0;
-	for(int i = 0; i < tam-1; i++)
-	{
-		saida[i] = matriz[i];
-	}
-
-	free(matriz);
-	return saida;
 }
 
 int** matriz_cidades(char* filename, int num_cidades)
@@ -162,7 +115,7 @@ void limpa_matriz(int** matriz, int size)
 
 long long current_timestamp() {
     struct timeval te; 
-    gettimeofday(&te, NULL); // get current time
+    //gettimeofday(&te, NULL); // get current time
     long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
     // printf("milliseconds: %lld\n", milliseconds);
     return milliseconds;
@@ -179,12 +132,12 @@ int* copia_lista(int* lista_original, int size)
 	return saida;
 }
 
-int** ordena_lista(int** matriz_entrada, int** lista_original, int size, int size_s, int size_lista)
+int** ordena_lista(int** matriz_entrada, int** lista_original, int size, int size_s, int size_lista, int val_a)
 {
 	int i, j, *aux;
 	for (i = 0; i < size_lista; i++) { 
         for (j = i + 1; j < size_lista; j++) { 
-            if (peso_total(lista_original[j], size_s, matriz_entrada) < peso_total(lista_original[i], size_s, matriz_entrada)) { 
+            if (fitness(peso_total(lista_original[j], size_s, matriz_entrada), val_a) > fitness(peso_total(lista_original[i], size_s, matriz_entrada), val_a)) { 
                 aux = lista_original[i]; 
                 lista_original[i] = lista_original[j]; 
                 lista_original[j] = aux; 
@@ -208,21 +161,7 @@ int pertence(int elem, int* solution, int size)
 	return 0;
 }
 
-int pega_menor(int* lista, int size, int count, int* solution)
-{
-	int i, menor = MAX, menor_i = -1;
-	for(int i = 0; i < size; i++)
-	{
-		if((lista[i] < menor) && (lista[i] != 0) && (lista[i] != MAX) && (!pertence(i, solution, size-1)))
-		{
-			menor = lista[i];
-			menor_i = i;
-		}
-	}
-	return menor_i;
-}
-
-int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha)
+int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, double alpha, int MAX)
 {
 	// copia é a lista de pesos de entrada ordenada
 	// n é lista de indices
@@ -245,8 +184,8 @@ int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, 
 		int cmin, cmax, menor, j;
 		double parameter_with_alpha;
 
-		cmin = menor_elem(lista, size, solution);
-		cmax = maior_elem(lista, size, solution);
+		cmin = menor_elem(lista, size, solution, MAX);
+		cmax = maior_elem(lista, size, solution, MAX);
 
 		parameter_with_alpha = (double)cmin + alpha * ((double)cmax - (double)cmin);
 
@@ -297,28 +236,7 @@ int pega_aleatorio(int* lista, int size, int count, int* solution, int i_grasp, 
 	return elem;
 }
 
-int elem_repetido(int* lista, int size)
-{
-	int i, j, count = 1;
-	for(i = 0; i < size; i++)
-	{
-		for(j = i+1; j < size;j++)
-		{
-			if((lista[i] == lista[j]) && (lista[i] != -1) && (lista[i] != 0))
-			{
-				count++;
-				if(count == 2)
-				{
-					return 1;
-				}
-			}
-			count = 1;
-		}
-	}
-	return 0;
-}
-
-int e_valida(int** matriz, int* solution, int size, int count)
+int e_valida(int** matriz, int* solution, int size, int count, int MAX)
 {
 	if((matriz[solution[size-1]][solution[0]] == 0) || (matriz[solution[size-1]][solution[0]] == MAX))
 	{
@@ -329,30 +247,7 @@ int e_valida(int** matriz, int* solution, int size, int count)
 	}
 }
 
-int caminho_existe(int* solution, int size, int**matriz)
-{
-	int valor;
-	if(!solution)
-	{
-		return 0;
-	}
-	for(int i = 1; i < size; i++)
-	{
-		valor = matriz[solution[i-1]][solution[i]]; 
-		if((valor == MAX) || (valor == 0))
-		{
-			return 0;
-		}
-	}
-	valor = matriz[solution[size-1]][solution[0]];
-	if((valor == MAX) || (valor == 0))
-	{
-		return 0;
-	}
-	return 1;
-}
-
-int menor_elem(int* lista, int size, int* solution)
+int menor_elem(int* lista, int size, int* solution, int MAX)
 {
 	int i, menor = MAX;
 	for(i = 0; i < size; i++){
@@ -365,7 +260,7 @@ int menor_elem(int* lista, int size, int* solution)
 	return menor;
 }
 
-int maior_elem(int* lista, int size, int* solution)
+int maior_elem(int* lista, int size, int* solution, int MAX)
 {
 	int i, maior = -1;
 	for(i = 0; i < size; i++){
@@ -378,51 +273,7 @@ int maior_elem(int* lista, int size, int* solution)
 	return maior;
 }
 
-int compare( const void* a, const void* b)
-{
-     int int_a = * ( (int*) a );
-     int int_b = * ( (int*) b );
-
-     if ( int_a == int_b ) return 0;
-     else if ( int_a < int_b ) return -1;
-     else return 1;
-}
-
-int diferente(int* a, int* b, int size_s)
-{
-	for(int i = 0; i < size_s; i++)
-	{
-		if(a[i] != b[i])
-		{
-			return 1;
-		}
-	}
-	return 0;
-}
-
-int* pega_leve(int size, int**matriz, int** elite_set, int nE)
-{
-	int menor_peso, temp, *saida = copia_lista(elite_set[0], size), indice = 0;
-
-	menor_peso = peso_total(elite_set[0], size, matriz);
-
-	for(int i = 1; i < nE; i++)
-	{
-		temp = peso_total(elite_set[i], size, matriz);
-		if(temp < menor_peso)
-		{
-			free(saida);
-			menor_peso = temp;
-			saida = copia_lista(elite_set[i], size);
-
-			indice = i;
-		}
-	}
-	free(saida);
-	return elite_set[indice];
-}
-
-int pesa_arestas(int **matriz, int size)
+int pesa_arestas(int **matriz, int size, int MAX)
 {
 	int total = 0;
 	for(int i = 0; i < size; i++)
@@ -439,7 +290,7 @@ int pesa_arestas(int **matriz, int size)
 	return total;
 }
 
-int* guloso(int** matriz_entrada, int size, int start, int iter)
+int* guloso(int** matriz_entrada, int size, int start, int iter, int MAX)
 {
 	double alpha = 0.2;
 	int** matriz = copia_matriz(matriz_entrada, size);
@@ -459,7 +310,7 @@ int* guloso(int** matriz_entrada, int size, int start, int iter)
 	printf("%d\n", solution[size_s-1]);
 	*/while(pertence(-1, solution, size_s))
 	{
-		menor = pega_aleatorio(matriz[solution[count-1]], size, count, solution, iter, alpha);
+		menor = pega_aleatorio(matriz[solution[count-1]], size, count, solution, iter, alpha, MAX);
 		//printf("MENOR: %d\n", menor);
 		if(menor == -1)
 		{
@@ -484,7 +335,7 @@ int* guloso(int** matriz_entrada, int size, int start, int iter)
 		printf("%d\n", solution[size_s-1]);
 		*/if(solution[size_s-1] != -1)
 		{
-			if(!e_valida(matriz, solution, size_s, count))
+			if(!e_valida(matriz, solution, size_s, count, MAX))
 			{
 				matriz[solution[count-1]][solution[count]] = 0;
 				solution[size_s-1] = -1;
@@ -514,12 +365,12 @@ int peso_total(int* solution, int size_s, int**matriz)
 	return peso;
 }
 
-int** gerar_populacao(int** matriz_entrada, int size, int tam_pop)
+int** gerar_populacao(int** matriz_entrada, int size, int tam_pop, int MAX)
 {
 	int **populacao = malloc(sizeof(int*)*tam_pop), individuos = 0, *solution;
 	for(int i = 0; i < tam_pop; i++)
 	{
-		solution = guloso(matriz_entrada, size, rand() % size, i);
+		solution = guloso(matriz_entrada, size, rand() % size, i, MAX);
 		if(solution == NULL)
 		{
 			i -= 1;
@@ -540,7 +391,7 @@ int fitness(int peso_s, int peso_arestas)
 	return fit;
 }
 
-int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter)
+int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_pop, int size_s, int iter, int val_a)
 {
 	int **pais = malloc(sizeof(int*)*2);
 	pais[1] = NULL;
@@ -556,7 +407,7 @@ int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_po
 	pais[0] = torneio[0];
 	for(int i = 1; i < tamanho_torneio; i++)
 	{
-		if(peso_total(torneio[i], size_s, matriz_entrada) < peso_total(pais[0], size_s, matriz_entrada))
+		if(fitness(peso_total(torneio[i], size_s, matriz_entrada), val_a) > fitness(peso_total(pais[0], size_s, matriz_entrada), val_a))
 		{
 			pais[0] = torneio[i];
 		}
@@ -574,7 +425,7 @@ int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_po
 	{
 		if(&torneio[i] != &pais[0])
 		{
-			if(peso_total(torneio[i], size_s, matriz_entrada) < peso_total(pais[1], size_s, matriz_entrada))
+			if(fitness(peso_total(torneio[i], size_s, matriz_entrada), val_a) > fitness(peso_total(pais[1], size_s, matriz_entrada), val_a))
 			{
 				pais[1] = torneio[i];
 			}	
@@ -586,19 +437,19 @@ int** seleciona_pais(int** matriz_entrada, int size, int** populacao, int tam_po
 	return pais;
 }
 
-int inserir_filho(int** matriz_entrada, int size_s, int** populacao, int tam_pop, int* filho)
+int inserir_filho(int** matriz_entrada, int size_s, int** populacao, int tam_pop, int* filho, int val_a)
 {
-	int pior_indice = 0, pior_peso = peso_total(populacao[0], size_s, matriz_entrada), peso_aux;
+	int pior_indice = 0, pior_membro = fitness(peso_total(populacao[0], size_s, matriz_entrada), val_a), membro_aux;
 	for(int k = 0; k < tam_pop; k++)
 	{
-		peso_aux = peso_total(populacao[k], size_s, matriz_entrada);
-		if(peso_aux >= pior_peso)
+		membro_aux = fitness(peso_total(populacao[k], size_s, matriz_entrada), val_a);
+		if(membro_aux <= pior_membro)
 		{
-			pior_peso = peso_aux;
+			pior_membro = membro_aux;
 			pior_indice = k;
 		}
 	}
-	if(peso_total(filho, size_s, matriz_entrada) < pior_peso)
+	if(fitness(peso_total(filho, size_s, matriz_entrada), val_a) > pior_membro)
 	{
 		free(populacao[pior_indice]);
 		populacao[pior_indice] = filho;
@@ -608,55 +459,7 @@ int inserir_filho(int** matriz_entrada, int size_s, int** populacao, int tam_pop
 	return 0;
 }
 
-int* cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter)
-{
-	int *filho = malloc(sizeof(int)*size_s), random, cidade;
-	srand(current_timestamp());
-	for(int k = 0; k < size_s; k++)
-	{
-		filho[k] = -1;
-	}
-	for(int i = 0; i < size_s; i++)
-	{
-		random = rand() % 100;
-		if(filho[i] != -1)
-		{
-			continue;
-		}
-		if(random <= 70)
-		{
-			filho[i] = pai_elite[i];
-			if(pai_elite[i] != pai_normal[i])
-			{
-				for(int j = i; j < size_s; j++)
-				{
-					if(pai_elite[j] == pai_normal[i])
-					{
-						filho[j] = pai_normal[i];
-					}
-				}
-			}
-		}
-		else
-		{
-			filho[i] = pai_normal[i];
-			if(pai_elite[i] != pai_normal[i])
-			{
-				for(int j = i; j < size_s; j++)
-				{
-					if(pai_normal[j] == pai_elite[i])
-					{
-						filho[j] = pai_elite[i];
-					}
-				}
-			}
-		}
-	}
-
-	return filho;
-}
-
-int** cruzamento_s(int* pai_elite, int* pai_normal, int size_s, int iter)
+int** cruzamento(int* pai_elite, int* pai_normal, int size_s, int iter)
 {
 	int *filho_1, *filho_2, random, cidade, sub_trecho_size, indice, i, k, elem1, elem2, trocados1 = 0, trocados2 = 0;
 	srand(current_timestamp());
@@ -765,11 +568,12 @@ int* swap(int* solution, int i, int k, int size)
 	return swap;
 }
 
-int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos)
+int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos, int MAX)
 {
 	int size_s = size - 1, *saida;
-	int **populacao = gerar_populacao(matriz_entrada, size, tam_pop), procura = 0, iter = 0,
+	int **populacao = gerar_populacao(matriz_entrada, size, tam_pop, MAX), procura = 0, iter = 0,
 	 **pais, **filhos, k, **filhos_totais, size_totais, inseriu;
+	int val_a = pesa_arestas(matriz_entrada, size, MAX);
 	while(procura < limite)
 	{
 		srand(current_timestamp());
@@ -778,8 +582,8 @@ int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limit
 		inseriu = 0;
 		for(int i = 0; i < cruzamentos; i++)
 		{
-			pais = seleciona_pais(matriz_entrada, size, populacao, tam_pop, size_s, (iter*iter) + i);
-			filhos = cruzamento_s(pais[0], pais[1], size_s, iter);
+			pais = seleciona_pais(matriz_entrada, size, populacao, tam_pop, size_s, (iter*iter) + i, val_a);
+			filhos = cruzamento(pais[0], pais[1], size_s, iter);
 			filhos_totais[size_totais] = filhos[0];
 			size_totais += 1;
 			filhos_totais[size_totais] = filhos[1];
@@ -790,7 +594,7 @@ int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limit
 
 		for(int i = 0; i < size_totais; i++)
 		{
-			if(peso_total(filhos_totais[i], size_s, matriz_entrada) <= target)
+			if(fitness(peso_total(filhos_totais[i], size_s, matriz_entrada), val_a) == target)
 			{
 				saida = copia_lista(filhos_totais[i], size_s);
 				for(k = 0; k < tam_pop; k++)
@@ -805,7 +609,7 @@ int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limit
 				free(filhos_totais);
 				return saida;
 			}
-			else if(inserir_filho(matriz_entrada, size_s, populacao, tam_pop, filhos_totais[i]))
+			else if(inserir_filho(matriz_entrada, size_s, populacao, tam_pop, filhos_totais[i], val_a))
 			{
 				inseriu = 1;
 			}
@@ -820,7 +624,7 @@ int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limit
 		free(filhos_totais);
 	}
 
-	populacao = ordena_lista(matriz_entrada, populacao, size, size_s, tam_pop);
+	populacao = ordena_lista(matriz_entrada, populacao, size, size_s, tam_pop, val_a);
 
 	saida = copia_lista(populacao[0], size_s);
 	for(k = 0; k < tam_pop; k++)
@@ -831,66 +635,183 @@ int* genetico(int **matriz_entrada, int size, int tam_pop, int target, int limit
 	return saida;
 }
 
+void roda_tudo(char *str, int tamp, int crz, int lmt, char *resp){
+	int MAX;
+	int num_cidades;
+	int **matriz;
+	int opt;
+	int i, j;
+	int peso;
+	clock_t begin;
+	int *solution;
+	time_t end;
+	double time_spent;
+	system("@cls||clear");
+	int erou = 1;
+
+	if(!strcmp("br17", str))
+	{
+		MAX = 9999;
+		printf("Resultado de br17.atsp.txt: \n");
+		num_cidades = 17;
+		matriz = matriz_cidades("br17.atsp.txt", num_cidades);
+		opt = 39;
+	} else if(!strcmp("ft53", str))
+	{
+		MAX = 9999999;
+		printf("Resultado de ft53.atsp.txt: \n");
+		num_cidades = 53;
+		matriz = matriz_cidades("ft53.atsp.txt", num_cidades);
+		opt = 6905;
+	} else if(!strcmp("ft70", str))
+	{
+		MAX = 9999999;
+		printf("Resultado de ft70.atsp.txt: \n");
+		num_cidades = 70;
+		matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
+		opt = 38673;
+	} else if(!strcmp("ry48p", str))
+	{
+		MAX = 9999999;
+		printf("Resultado de ry48p.atsp.txt: \n");
+		num_cidades = 48;
+		matriz = matriz_cidades("ry48p.atsp.txt", num_cidades);
+		opt = 14422;
+	} else if(!strcmp("ftv38", str))
+	{
+		MAX = 100000000;
+		printf("Resultado de ftv38.atsp.txt: \n");
+		num_cidades = 38;
+		matriz = matriz_cidades("ftv38.atsp.txt", num_cidades);
+		opt = 1530;
+	} else if(!strcmp("ftv64", str))
+	{
+		MAX = 100000000;
+		printf("Resultado de ftv64.atsp.txt: \n");
+		num_cidades = 64;
+		matriz = matriz_cidades("ftv64.atsp.txt", num_cidades);
+		opt = 1839;
+	} else if(!strcmp("ftv70", str))
+	{
+		MAX = 100000000;
+		printf("Resultado de ftv70.atsp.txt: \n");
+		num_cidades = 70;
+		matriz = matriz_cidades("ftv70.atsp.txt", num_cidades);
+		opt = 1950;
+	} else if(!strcmp("ftv170", str))
+	{
+		MAX = 100000000;
+		printf("Resultado de ftv170.atsp.txt: \n");
+		num_cidades = 170;
+		matriz = matriz_cidades("ftv170.atsp.txt", num_cidades);
+		opt = 2755;
+	} else {
+		erou = 0;
+		printf("Instancia invalida, evite digitar valores errados\n");
+	}
+
+	if(erou)
+	{
+		begin = clock();
+		if(!strcmp("y", resp))
+		{
+			solution = genetico(matriz, num_cidades, tamp, 39, lmt, crz, MAX);
+		} else {
+			solution = genetico(matriz, num_cidades, num_cidades * 2, 39, 20, num_cidades, MAX);	
+		}
+		
+		end = clock();
+		peso = peso_total(solution, num_cidades-1, matriz);
+		for(i = 0; i < num_cidades; i++)
+		{
+			free(matriz[i]);
+		}
+		printf("Melhor solucao: \n");
+		for(i = 0; i < num_cidades-2; i++)
+		{
+			printf("%d -> ", solution[i]);
+		}
+		printf("%d\n", solution[num_cidades-2]);
+		printf("Peso total: %d\n", peso);
+		free(matriz);
+		free(solution);
+		time_spent = 0.0;
+		time_spent += (double)(end - begin)/CLOCKS_PER_SEC;
+		printf("TEMPO DE EXECUÇÃO: %f\n", time_spent);
+	}
+}
+
 int main(int* argc, char* argv[])
 {	
-	int num_cidades = 70;
-	//int **matriz = matriz_cidades("br17.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv170.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ft53.atsp.txt", num_cidades);
-	int **matriz = matriz_cidades("ft70.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv33.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv35.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv38.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv44.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv47.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv55.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv64.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ftv70.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("p43.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("rbg323.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("rbg358.atsp.txt", num_cidades); //NAO
-	//int **matriz = matriz_cidades("rbg403.atsp.txt", num_cidades); //NAO
-	//int **matriz = matriz_cidades("rbg443.atsp.txt", num_cidades);
-	//int **matriz = matriz_cidades("ry48p.atsp.txt", num_cidades);
-
-	int i, j;
-
-	
-	clock_t begin = clock();
-
-	//(int **matriz_entrada, int size, int tam_pop, int target, int limite, int cruzamentos)
-	int *solution = genetico(matriz, num_cidades, 400, 39, 50, 150);
-
-	time_t end = clock();
-
-	int peso = peso_total(solution, num_cidades-1, matriz);
-
-
-	for(i = 0; i < num_cidades; i++)
+	while(1)
 	{
-		for(int j = 0; j < num_cidades; j++)
+		printf("\n");
+		printf("\n");
+		printf("Instancias: \n");
+		printf("br17\t");
+		printf("ft53\t");
+		printf("ft70\n");
+		printf("ry48p\t");
+		printf("ftv38\t");
+		printf("ftv64\n");
+		printf("ftv70\t");
+		printf("ftv170\n");
+
+		char instancia[100];
+		char resp[100];
+		int cruzamentos;
+		int limite;
+		int tam_pop;
+		printf("Digite o nome da instancia desejada ou 0 para sair: ");
+		scanf("%s", instancia);
+		if(!strcmp("0", instancia))
 		{
-			//printf("%d\t", matriz[i][j]);
+			break;
 		}
-		//printf("\n");
-		free(matriz[i]);
+
+		system("@cls||clear");
+		while(1)
+		{
+			printf("Valores default: \n");
+			printf("Tamanho da populacao = numero de cidades * 2\n");
+			printf("Limite de iteracoes sem melhoria = 20\n");
+			printf("Cruzamentos realizados = numero de cidades\n");
+			printf("\n");
+			printf("O numero de cidades pode ser identificado pelo nome da instancia, exemplo: \n");
+			printf("br17 - Numero de cidades = 17\n");
+			printf("Default: \n");
+			printf("Tamanho da populacao = 34\n");
+			printf("Limite de iteracoes sem melhoria = 20\n");
+			printf("Cruzamentos realizados = 17\n");
+			printf("CUIDADO! Recomenda-se utilizar os valores default!\n");
+			printf("Valores muito altos podem estourar a memoria e gerar falhas de segmentacao\n");
+			printf("Deseja alterar esses valores (y/n)?  ");
+			scanf("%s", resp);
+			if(!strcmp("y", resp))
+			{
+				system("@cls||clear");
+				printf("Digite apenas numeros por favor, caso contrario a aplicacao ira parar!\n");
+				printf("Quantidade de Cruzamentos?  ");
+				scanf("%d", &cruzamentos);
+				printf("\n");
+				printf("Limite de iteracoes sem melhoria?  ");
+				scanf("%d", &limite);
+				printf("\n");
+				printf("Tamanho da populacao?  ");
+				scanf("%d", &tam_pop);
+				printf("\n");
+				break;
+			}else if(!strcmp("n", resp))
+			{
+				break;
+			}else{
+				system("@cls||clear");
+			}
+		}
+		
+		roda_tudo(instancia, tam_pop, cruzamentos, limite, resp);
 	}
-
-	printf("Solucao: \n");
-	for(i = 0; i < num_cidades-2; i++)
-	{
-		printf("%d -> ", solution[i]);
-	}
-	printf("%d\n", solution[num_cidades-2]);
-
-	printf("Peso total: %d\n", peso);
-
-	free(matriz);
-	free(solution);
-	double time_spent = 0.0;
-	time_spent += (double)(end - begin)/CLOCKS_PER_SEC;
-	printf("TEMPO DE EXECUÇÃO: %f\n", time_spent);
+	
     return 0;
 }
 
